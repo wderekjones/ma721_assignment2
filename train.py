@@ -60,8 +60,8 @@ def train(model, dataloader, val_dataloader, optimizer, epoch):
         # Forward pass: compute output of the network by passing x through the model.
         y_pred_probs = model(batch_xs.long())
 
-        y_pred = np.argmax(y_pred_probs.data.cpu().numpy(),axis=1)
-        y_test = np.argmax(batch_ys.data.cpu().numpy(),axis=1)
+        y_pred = np.argmax(y_pred_probs.data,axis=0)
+        y_test = np.argmax(batch_ys.data,axis=0)
 
         # Compute loss.
         train_loss = loss_fn(y_pred_probs, batch_ys.float())
@@ -76,47 +76,48 @@ def train(model, dataloader, val_dataloader, optimizer, epoch):
     stop_train_clock = time.clock()
 
     # witch the model to evaluation mode (training=False) in order to evaluate on the validation set
-    model.eval()
+    # model.eval()
+    #
+    # val_losses = []
+    # val_precisions = []
+    # val_f1s = []
+    # val_recalls = []
+    # val_accs = []
 
-    val_losses = []
-    val_precisions = []
-    val_f1s = []
-    val_recalls = []
-    val_accs = []
-
-    start_val_clock = time.clock()
-    for val_batch_number, val_batch in enumerate(val_dataloader):
-        val_xs = Variable(val_batch[0].float(), requires_grad=False)
-        val_ys = Variable(val_batch[1].long(), requires_grad=False)
-
-        # Forward pass: compute output of the network by passing x through the model.
-        val_y_pred_probs = model(val_xs)
-
-        val_y_pred = np.argmax(val_y_pred_probs.data,axis=1)
-        val_y_test = np.argmax(val_ys.data,axis=1)
-
+    # start_val_clock = time.clock()
+    # for val_batch_number, val_batch in enumerate(val_dataloader):
+    #     val_xs = Variable(val_batch[0].float(), requires_grad=False)
+    #     val_ys = Variable(val_batch[1].long(), requires_grad=False)
+    #
+    #     Forward pass: compute output of the network by passing x through the model.
+        # val_y_pred_probs = model(val_xs)
+        #
+        # val_y_pred = np.argmax(val_y_pred_probs.data,axis=1)
+        # val_y_test = np.argmax(val_ys.data,axis=1)
+        #
         # Compute loss.
-        val_loss = loss_fn(val_y_pred_probs, val_ys.float())
-        val_losses.append(val_loss.data)
-        val_precisions.append(precision_score(val_y_test, val_y_pred))
-        val_f1s.append(f1_score(val_y_test, val_y_pred))
-        val_recalls.append(recall_score(val_y_test, val_y_pred))
-        val_accs.append(accuracy_score(val_y_test, val_y_pred))
-    stop_val_clock = time.clock()
-
-    print("epoch: {} \t val_loss: {} \t val_accuracy: {} \t val_precision: {} \t val_recall: {} \t val_f1: {}".format(epoch,
-                                                                                                    np.mean(val_losses),
-                                                                                                    np.mean(val_accs),
-                                                                                                    np.mean(val_precisions),
-                                                                                                    np.mean(val_recalls),
-                                                                                                    np.mean(val_f1s)))
+        # val_loss = loss_fn(val_y_pred_probs, val_ys.float())
+        # val_losses.append(val_loss.data)
+        # val_precisions.append(precision_score(val_y_test, val_y_pred))
+        # val_f1s.append(f1_score(val_y_test, val_y_pred))
+        # val_recalls.append(recall_score(val_y_test, val_y_pred))
+        # val_accs.append(accuracy_score(val_y_test, val_y_pred))
+    # stop_val_clock = time.clock()
+    #
+    # print("epoch: {} \t val_loss: {} \t val_accuracy: {} \t val_precision: {} \t val_recall: {} \t val_f1: {}".format(epoch,
+    #                                                                                                 np.mean(val_losses),
+    #                                                                                                 np.mean(val_accs),
+    #                                                                                                 np.mean(val_precisions),
+    #                                                                                                 np.mean(val_recalls),
+    #                                                                                                 np.mean(val_f1s)))
     # put the model back into training mode so that it is ready to be updated during future epochs
-    model.train()
+    # model.train()
     # return a tuple of dictionary objects containing the training and validation metrics respectively
     return ({"train_loss": np.mean(train_losses), "train_precision": np.mean(train_precisions), "train_recall": np.mean(train_recalls), "train_f1": np.mean(train_f1s),
-               "train_accuracy": np.mean(train_accs), "train_time": (stop_train_clock-start_train_clock)},
-        {"val_loss": np.mean(val_losses), "val_precision": np.mean(val_precisions), "val_recall": np.mean(val_recalls), "val_f1": np.mean(val_f1s),
-               "val_accuracy": np.mean(val_accs), "val_time": (stop_val_clock - start_val_clock)})
+               "train_accuracy": np.mean(train_accs), "train_time": (stop_train_clock-start_train_clock)})
+            # ,
+    #     {"val_loss": np.mean(val_losses), "val_precision": np.mean(val_precisions), "val_recall": np.mean(val_recalls), "val_f1": np.mean(val_f1s),
+    #            "val_accuracy": np.mean(val_accs), "val_time": (stop_val_clock - start_val_clock)})
 
 
 if __name__ == '__main__':
@@ -124,10 +125,6 @@ if __name__ == '__main__':
     time_stamp = time.time()
     writer = SummaryWriter("logs/"+str(time_stamp)+"/")
 
-    # N is batch size; D_in is input dimension;
-    # H is hidden dimension; D_out is output dimension.
-    # n_bins is the number of class bins
-    # num_epochs is the number of complete iterations over the data in batch_size increments
 
     num_epochs = args.epochs
     batch_size = args.batch_sz
@@ -139,15 +136,14 @@ if __name__ == '__main__':
     # positives to negative training examples
     train_data = imdbTrainDataset()
     idxs = np.arange(0, len(train_data))
-    train_idxs, val_idxs = train_test_split(idxs, stratify=train_data.labels, random_state=seed)
+    train_idxs, val_idxs = train_test_split(idxs, stratify=train_data.labels.numpy(), random_state=seed)
     train_dataloader = DataLoader(train_data, batch_size=batch_size, num_workers=num_workers, sampler=train_idxs)
     val_dataloader = DataLoader(train_data, batch_size=batch_size, num_workers=num_workers, sampler=val_idxs)
 
     # define the network dimensions based on input data dimensionality
-    N, D_in, H, D_out = batch_size, train_data.data.shape[1], 5, n_bins
 
     # load the model
-    model = RNN(vocab_size=250, embedding_dim=100, hidden_dim=50)
+    model = RNN(embedding_dim=100, hidden_dim=100, vocab_size=20000, label_size=2, batch_size=1)
 
     # model.cuda()
 
@@ -189,21 +185,21 @@ if __name__ == '__main__':
     for step in range(num_epochs):
         epoch_loss = 0
 
-        train_dict, val_dict = train(model, train_dataloader, val_dataloader, optimizer, epoch)
+        train_dict = train(model, train_dataloader, val_dataloader, optimizer, epoch)
 
-        writer.add_scalar("train_loss", float(train_dict["train_loss"]), epoch)
-        writer.add_scalar("train_accuracy", float(train_dict["train_accuracy"]), epoch)
-        writer.add_scalar("train_precision", float(train_dict["train_precision"]), epoch)
-        writer.add_scalar("train_recall", float(train_dict["train_recall"]), epoch)
-        writer.add_scalar("train_f1", float(train_dict["train_f1"]), epoch)
-        writer.add_scalar("train_time", float(train_dict["train_time"]), epoch)
-        writer.add_scalar("val_loss", float(val_dict["val_loss"]), epoch)
-        writer.add_scalar("val_accuracy", float(val_dict["val_accuracy"]), epoch)
-        writer.add_scalar("val_precision", float(val_dict["val_precision"]), epoch)
-        writer.add_scalar("val_recall", float(val_dict["val_recall"]), epoch)
-        writer.add_scalar("val_f1", float(val_dict["val_f1"]), epoch)
-        writer.add_scalar("val_time", float(val_dict["val_time"]), epoch)
-        epoch += 1
+        # writer.add_scalar("train_loss", float(train_dict["train_loss"]), epoch)
+        # writer.add_scalar("train_accuracy", float(train_dict["train_accuracy"]), epoch)
+        # writer.add_scalar("train_precision", float(train_dict["train_precision"]), epoch)
+        # writer.add_scalar("train_recall", float(train_dict["train_recall"]), epoch)
+        # writer.add_scalar("train_f1", float(train_dict["train_f1"]), epoch)
+        # writer.add_scalar("train_time", float(train_dict["train_time"]), epoch)
+        # writer.add_scalar("val_loss", float(val_dict["val_loss"]), epoch)
+        # writer.add_scalar("val_accuracy", float(val_dict["val_accuracy"]), epoch)
+        # writer.add_scalar("val_precision", float(val_dict["val_precision"]), epoch)
+        # writer.add_scalar("val_recall", float(val_dict["val_recall"]), epoch)
+        # writer.add_scalar("val_f1", float(val_dict["val_f1"]), epoch)
+        # writer.add_scalar("val_time", float(val_dict["val_time"]), epoch)
+        # epoch += 1
 
     stop_clock = time.clock()
     print()
@@ -211,39 +207,40 @@ if __name__ == '__main__':
     print()
 
     # serialize the scalar data to a .json
-    scalar_path = "results/"+str(time_stamp)+"_all_scalars.json"
-    if not os.path.exists("results/"):
-        os.makedirs("results/")
-
-    writer.export_scalars_to_json(scalar_path)
-    writer.close()
+    # scalar_path = "results/"+str(time_stamp)+"_all_scalars.json"
+    # if not os.path.exists("results/"):
+    #     os.makedirs("results/")
+    #
+    # writer.export_scalars_to_json(scalar_path)
+    # writer.close()
 
     # pickle the model and save to a file
-    model_path = "models/"+str(time_stamp)+"_saved_state.pkl"
-    if not os.path.exists("models/"):
-        os.makedirs("models/")
-    torch.save(model.state_dict(), model_path)
+    # model_path = "models/"+str(time_stamp)+"_saved_state.pkl"
+    # if not os.path.exists("models/"):
+    #     os.makedirs("models/")
+    # torch.save(model.state_dict(), model_path)
 
     # evaluate on the testing data
     # model.cpu().eval()
-    test_data = imdbTestDataset()
-    test_y_probs = model(Variable(test_data.data.float(), requires_grad=False))
-    test_y_preds = np.argmax(test_y_probs.data, axis=1)
-    y_test = np.argmax(test_data.labels, axis=1)
-    print()
-    print("testing data # examples: {}".format(len(test_data)))
-    print("Unweighted performance metrics: ")
-    print("Accuracy: {} \t F1-Score: {} \t Precision: {} \t Recall: {}".format(accuracy_score(y_test, test_y_preds),
-                                                                               f1_score(y_test, test_y_preds),
-                                                                               precision_score(y_test, test_y_preds),
-                                                                               recall_score(y_test, test_y_preds)))
-    print()
-    print("----------------------------------------------------------------")
-    print("weighted performance metrics: ")
-    precision, recall, fscore, _ = precision_recall_fscore_support(y_test, test_y_preds,
-                                                                   labels=[1])
-    print("Precision: {} \t Recall: {} \t F1-Score: {}".format(precision,recall,fscore))
-
-    print()
-    print("----------------------------------------------------------------")
-    print(classification_report(y_test,test_y_preds))
+    # test_data = imdbTestDataset()
+    # test_y_probs = model(Variable(test_data.data, requires_grad=False))
+    # test_y_preds = np.argmax(test_y_probs.data, axis=1)
+    # y_test = np.argmax(test_data.labels, axis=1)
+    # print()
+    # print("testing data # examples: {}".format(len(test_data)))
+    # print("Unweighted performance metrics: ")
+    # print("Accuracy: {} \t F1-Score: {} \t Precision: {} \t Recall: {}".format(accuracy_score(y_test, test_y_preds),
+    #                                                                            f1_score(y_test, test_y_preds),
+    #                                                                            precision_score(y_test, test_y_preds),
+    #                                                                            recall_score(y_test, test_y_preds)))
+    # print()
+    # print("----------------------------------------------------------------")
+    # print("weighted performance metrics: ")
+    # precision, recall, fscore, _ = precision_recall_fscore_support(y_test, test_y_preds,
+    #                                                                labels=[1])
+    # print("Precision: {} \t Recall: {} \t F1-Score: {}".format(precision,recall,fscore))
+    #
+    # print()
+    # print("----------------------------------------------------------------")
+    # print(classification_report(y_test,test_y_preds))
+#

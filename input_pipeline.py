@@ -1,3 +1,4 @@
+import torch
 from torch.utils.data import Dataset
 from keras.datasets import imdb
 from keras.preprocessing.sequence import pad_sequences
@@ -9,9 +10,9 @@ class imdbTrainDataset(Dataset):
         train, _ = imdb.load_data(num_words=vocab_size, maxlen=maxlen)
         self.data = train[0]
         self.labels = train[1]
-        self.data = pad_sequences(self.data, maxlen=250)
+        self.data = torch.from_numpy(pad_sequences(self.data, maxlen=250))
         # self.data = self.data.flatten()
-        self.labels = self.labels.flatten()
+        self.labels = torch.from_numpy(self.labels.flatten())
 
     def __len__(self):
         return len(self.data)
@@ -26,9 +27,9 @@ class imdbTestDataset(Dataset):
         _, test = imdb.load_data(num_words=vocab_size, maxlen=maxlen)
         self.data = test[0]
         self.labels = test[1]
-        self.data = pad_sequences(self.data, maxlen=250)
+        self.data = torch.from_numpy(pad_sequences(self.data, maxlen=250))
         # self.data = self.data.flatten()
-        self.labels = self.labels.flatten()
+        self.labels = torch.from_numpy(self.labels.flatten())
 
     def __len__(self):
         return len(self.data)
@@ -37,5 +38,5 @@ class imdbTestDataset(Dataset):
         return self.data[item], self.labels[item]
 
 
-# train_data = imdbTrainDataset()
-# test_data = imdbTestDataset()
+train_data = imdbTrainDataset()
+test_data = imdbTestDataset()
