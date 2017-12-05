@@ -26,7 +26,7 @@ from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_sc
     classification_report
 from sklearn.model_selection import train_test_split
 from input_pipeline import imdbTrainDataset, imdbTestDataset
-from model import ConvNet
+from model import RNN
 
 # TODO: add class weighted validation metrics for testing? should be easy x)
 # TODO: roc curves or confusion matrices on the testing data, the latter should be more straightforward
@@ -147,7 +147,7 @@ if __name__ == '__main__':
     N, D_in, H, D_out = batch_size, train_data.data.shape[1], 5, n_bins
 
     # load the model
-    model = ConvNet(vocab_size=250, embedding_dim=100, hidden_dim=50, label_size=2)
+    model = RNN(vocab_size=250, embedding_dim=100, hidden_dim=50)
 
     # model.cuda()
 
