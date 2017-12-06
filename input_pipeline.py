@@ -29,7 +29,7 @@ class imdbTestDataset(Dataset):
         self.labels = test[1]
         self.data = torch.from_numpy(pad_sequences(self.data, maxlen=250))
         # self.data = self.data.flatten()
-        self.labels = torch.from_numpy(self.labels.flatten())
+        self.labels = torch.from_numpy(self.labels)
 
     def __len__(self):
         return len(self.data)
@@ -38,5 +38,5 @@ class imdbTestDataset(Dataset):
         return self.data[item], self.labels[item]
 
 
-train_data = imdbTrainDataset()
-test_data = imdbTestDataset()
+# train_data = imdbTrainDataset()
+# test_data = imdbTestDataset()
