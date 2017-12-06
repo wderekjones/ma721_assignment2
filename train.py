@@ -19,15 +19,17 @@ import matplotlib.pyplot as plt
 plt.style.use("seaborn-muted")
 from tensorboardX import SummaryWriter
 import torch
+
 import multiprocessing
 torch.manual_seed(seed)
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
+from torch.nn import init
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, precision_recall_fscore_support, \
     classification_report
 from sklearn.model_selection import train_test_split
 from input_pipeline import imdbTrainDataset, imdbTestDataset
-from model import RNN
+from model import smallRNN, CNN
 
 # TODO: add class weighted validation metrics for testing? should be easy x)
 # TODO: roc curves or confusion matrices on the testing data, the latter should be more straightforward
@@ -36,7 +38,7 @@ parser.add_argument("--data", type=str, help="path to data")
 parser.add_argument("--feats", type=str, help="path to features")
 parser.add_argument("--epochs", type=int, help="number of training epochs", default=10)
 parser.add_argument("--lr", type=float, help="learning rate", default=1e-3)
-parser.add_argument("--batch_sz", type=int, help="batch size", default=1)
+parser.add_argument("--batch_sz", type=int, help="batch size", default=500)
 parser.add_argument("--null", type=str, help="path to null features")
 parser.add_argument("--ncores", type=int, help="number of cores to use for multiprocessing of training", default=multiprocessing.cpu_count())
 parser.add_argument("--oversample", type=str, help="whether to oversample the minority class", default=None)
@@ -45,44 +47,41 @@ parser.add_argument("--model", type=str, help="name of model to use for training
 
 
 def train(model, dataloader, optimizer):
-    train_losses = []
+    losses = []
     train_precisions = []
     train_f1s = []
     train_recalls = []
-    train_accs = []
+    accs = []
 
     start_train_clock = time.clock()
     for batch_number, batch in tqdm.tqdm(enumerate(dataloader)):
         optimizer.zero_grad()
 
-        batch_xs = Variable(batch[0].float(), requires_grad=False)
-        batch_ys = Variable(batch[1].long(), requires_grad=False)
+        # there is no point in wrapping these in variables containing
+        batch_xs = Variable(batch[0].cuda().long(), requires_grad=False)
+        batch_ys = Variable(batch[1].cuda().long(), requires_grad=False)
 
         # Forward pass: compute output of the network by passing x through the model.
-        y_pred_probs = model(batch_xs.long())
+        y_pred_probs = model(batch_xs)
 
-        y_pred = np.argmax(y_pred_probs.data.numpy(),axis=1)
-        y_test = np.argmax(batch_ys.data.numpy(),axis=0)
-
+        y_pred = np.argmax(y_pred_probs.cpu().data.numpy(),axis=1)
+        y_test = batch_ys.cpu().data.numpy()
+        accs.append((accuracy_score(y_test,y_pred)))
         # Compute loss.
-        train_loss = loss_fn(y_pred_probs.view(-1), batch_ys.float())
+        loss = loss_fn(y_pred_probs.view(-1), batch_ys.float())
+        losses.append(loss.cpu().data.numpy())
 
         # Backward pass: compute gradient of the loss with respect to model parameters
-        train_loss.backward(retain_graph=True)
-        optimizer.step()
+        loss.backward(retain_graph=True)
+    optimizer.step()
     stop_train_clock = time.clock()
-    print("epoch time: %d".format(stop_train_clock-start_train_clock))
+    # print("epoch time: {0:.3f}".format(stop_train_clock-start_train_clock))
+    print("loss: {0:.3f} \t accuracy: {0:.3f}".format(np.mean(losses), np.mean(accs)))
     # witch the model to evaluation mode (training=False) in order to evaluate on the validation set
 
 if __name__ == '__main__':
     args = parser.parse_args()
     time_stamp = time.time()
-    # writer = SummaryWriter("logs/"+str(time_stamp)+"/")
-
-    # N is batch size; D_in is input dimension;
-    # H is hidden dimension; D_out is output dimension.
-    # n_bins is the number of class bins
-    # num_epochs is the number of complete iterations over the data in batch_size increments
 
     num_epochs = args.epochs
     batch_size = args.batch_sz
@@ -95,17 +94,22 @@ if __name__ == '__main__':
     train_data = imdbTrainDataset()
     train_dataloader = DataLoader(train_data, batch_size=batch_size, num_workers=num_workers)
 
-    # define the network dimensions based on input data dimensionality
-    # N, D_in, H, D_out = batch_size, train_data.data.shape[1], 5, n_bins
 
     # load the model
-    model = RNN(vocab_size=20000, embedding_dim=100, hidden_dim=50,label_size=1, batch_size=2,seq_len=250)
+    model = CNN(vocab_size=20000, embedding_dim=128, hidden_dim=50, label_size=1, batch_size=batch_size, seq_len=250)
+    model.cuda()
 
+    # model._parameters = init.xavier_normal(list(model.parameters()))
+    # or
+    for param in model.parameters():
+        # init.xavier_normal(param)
+        init.uniform(param)
     loss_fn = torch.nn.BCEWithLogitsLoss()
+    # loss_fn = torch.nn.CrossEntropyLoss()
     loss_name = "bce"
 
-    # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
     start_clock = time.clock()
     epoch = 0
 
