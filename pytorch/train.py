@@ -1,15 +1,10 @@
-import model
-import input_pipeline
-import torch
-
-
-
 # built using example code from pytorch getting started with examples documentation http://pytorch.org/tutorials/beginner/pytorch_with_examples.html
 # -*- coding: utf-8 -*-
 import argparse
-import numpy as np
 import time
-import os
+
+import numpy as np
+
 seed = 0
 np.random.RandomState(seed)
 import tqdm
@@ -17,7 +12,6 @@ import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 plt.style.use("seaborn-muted")
-from tensorboardX import SummaryWriter
 import torch
 
 import multiprocessing
@@ -25,11 +19,9 @@ torch.manual_seed(seed)
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from torch.nn import init
-from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, precision_recall_fscore_support, \
-    classification_report
-from sklearn.model_selection import train_test_split
-from input_pipeline import imdbTrainDataset, imdbTestDataset
-from model import smallRNN, CNN
+from sklearn.metrics import accuracy_score
+from pytorch.input_pipeline import imdbTrainDataset
+from pytorch.model import CNN
 
 # TODO: add class weighted validation metrics for testing? should be easy x)
 # TODO: roc curves or confusion matrices on the testing data, the latter should be more straightforward
