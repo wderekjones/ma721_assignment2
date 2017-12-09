@@ -4,6 +4,7 @@ from model import rnn
 from keras.datasets import imdb
 from keras.preprocessing import sequence
 from keras import optimizers
+from keras.callbacks import EarlyStopping
 from utils import output_performance, generate_figures, get_args
 
 args = get_args()
@@ -19,8 +20,9 @@ model = rnn(vocab_size=args.vocab_size, maxLen=args.maxLen, embedding_dim=args.e
 model.compile(optimizer=optimizers.Adam(lr=args.lr), loss='binary_crossentropy', metrics=['accuracy'])
 
 print(model.summary())
-history = model.fit(x_train, y_train, validation_split=args.val_split, batch_size=args.batch, epochs=args.epochs)
+history = model.fit(x_train, y_train, validation_split=args.val_split, batch_size=args.batch, epochs=args.epochs,
+                    callbacks=[EarlyStopping(monitor='val_loss')])
 
 y_pred = model.predict(x_test)
-generate_figures(history=history, model_name="rnn", output_dir="figures")
+generate_figures(history=history, model_name=args.model_name, output_dir="figures")
 output_performance(model=model, y_test=y_test, y_pred=y_pred)
